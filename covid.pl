@@ -86,7 +86,7 @@ foreach  my $file(@files){
     push (@names, $temp_name);
     mkdir "$result_path/$temp_name";
     $file_name{$file} = $temp_name;
-    print "Extraindo arquivo $temp_name\n";
+    print "Extraindo arquivo $file\n";
     system "gunzip -c $fastq_inputs$file > $result_path/$temp_name/$temp_name\_$splitname[3].fastq";
 
   }
@@ -96,7 +96,7 @@ foreach  my $file(@files){
     $file_name{$file} = $temp_name;
     push (@names, $temp_name);
     mkdir "$result_path/$temp_name";
-    print "Extraindo arquivo $temp_name\n";
+    print "Extraindo arquivo $file\n";
     system "gunzip -c $fastq_inputs$file > $result_path/$temp_name/$temp_name.fastq";
   }
 }
@@ -343,7 +343,7 @@ while (my $seq_ref = $in->next_seq() ){
 }
 my $header = "Indivíduo";
 foreach my $id_ref(@ids_ref){
-  $header = "$header,\"$id_ref\nResultado/Identidade/Cobertura/Peso\"";
+  $header = "$header,\"$id_ref\nResultado/Identidade/Cobertura/Peso/SeqID\"";
 }
 open (DEPARA, $depara) or die;
 my %realnames;
@@ -372,11 +372,11 @@ foreach my $name(@filter_names){
           if ($fields[2] > 90){
             $status{$name}{$id} = 1; #1 = positivo;
             if ($idcount<1){
-              $idvalue .= "+/$fields[2]\%/$fields[3]\%/$sequencew{$name}{$fields[1]}";
+              $idvalue .= "+ / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
               $idcount++;
             }
             else{
-              $idvalue.= "\n+/$fields[2]\%/$fields[3]\%/$sequencew{$name}{$fields[1]}";
+              $idvalue.= "\n+ / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
             }
           }
         }else{next}
@@ -402,28 +402,79 @@ foreach my $name(@filter_names){
 
 close (OUTCSV);
 
+my %sequencescout;
+foreach my $name(@filter_names){
+  if (!-s "$result_path/$name/$name.qfilter.pfilter.unique.final.fasta"){
+    next;
+  }
+  open (FASTA, "$result_path/$name/$name.qfilter.pfilter.unique.final.fasta") or die;
+  my $i = 0;
+  while (<FASTA>){
+    my $line = $_;
+    if ($line =~ /^>/){
+      #print $line."\n";
+      $sequencescout{$name}{$i} = $line;
+      $i++;
+    }
+  }
+}
+
+
 ALG:
 foreach my $name(@filter_names){
   my $pid = $pm-> start and next ALG;
   my $blast_alg = "$result_path/$name/$name\_blast_alg";
-  my %sequencescout;
   if (!-s $blast_alg){
-    print "LALALA\n";
+    #print "LALALA\n";
     $pm -> finish;
     next;
   }
   open (IN, $blast_alg) or die("Não consegui abrir o arquivo $blast_alg\n");
-  open (FASTA, "$result_path/$name/$name.qfilter.pfilter.unique.final.fasta") or die;
   open (OUT, ">>$result_path/final_resuts/$name.alg");
-  my $i = 0;
-  while (<FASTA>){
-    chomp $_;
-    print "$_\n";
-      $sequencescout{$i} = $_;
-  }
-  print Dumper ("\%sequencescout\n");
+  my $i =0;
   while (<IN>){
     chomp $_;
+    if ($_ =~ /^Query\_/ ){
+      if ($i>0){
+        print OUT "\n";
+      }
+      $_ =~ s/Query/ref/;
+      my @fields = split (/\s/,$_);
+      my $info = shift @fields;
+      push (@fields, $info);
+      my $ref;
+      foreach my $field(@fields){
+        if ($field){
+          $ref.="$field ";
+        }
+      }
+      $ref =~ s/\s/\t/g;
+      print OUT "$ref\n";
+      $i++;
+    }
+    if ($_ =~ /^\d/){
+      my @fields = split (/\s/, $_);
+      #print Dumper (\@fields);
+      my $id = $sequencescout{$name}{$fields[0]};
+      chomp $id;
+      $id =~ s/^>//;
+      $id =~ s/\t\d*$//;
+      $fields[0] = $id;
+      my $info = shift @fields;
+      push (@fields, $info);
+     # print Dumper (\@fields);
+      my $seq;
+      foreach my $field(@fields){
+        if ($field){
+          $seq.="$field ";
+        }
+      }
+      $seq =~ s/\s/\t/g;
+      print OUT "$seq\n";
+    } 
   }
+  $pm->finish;
 }
+$pm -> wait_all_children;
+
 print "Obrigado por escolher a PHT\n";
