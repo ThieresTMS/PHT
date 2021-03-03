@@ -1,0 +1,24 @@
+git clone https://github.com/ThieresTMS/PHT
+cd PHT
+rm */*
+cd dependencias
+wget http://hannonlab.cshl.edu/fastx_toolkit/fastx_toolkit_0.0.13_binaries_Linux_2.6_amd64.tar.bz2
+tar -vjxf fastx_toolkit_0.0.13_binaries_Linux_2.6_amd64.tar.bz2 
+rm fastx_toolkit_0.0.13_binaries_Linux_2.6_amd64.tar.bz2
+wget https://github.com/mothur/mothur/releases/download/v1.44.3/Mothur.linux.zip
+unzip Mothur.linux.zip
+rm Mothur.linux.zip
+git clone https://github.com/ExpressionAnalysis/ea-utils
+cd ea-utils/clipper
+make
+cd ../..
+wget https://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/LATEST/ncbi-blast-2.11.0+-x64-linux.tar.gz
+tar -vzxf  ncbi-blast-2.11.0+-x64-linux.tar.gz
+cpan Getopt::Long --force
+çpanParallel::ForkManager --force
+cpan Bio::SeqIO --force
+cpan Bio::Seq::Quality --force
+cpan File::Basename --force
+cpan File::Spec::Functions --force
+cpan Cwd --force
+cpan POSIX --force
