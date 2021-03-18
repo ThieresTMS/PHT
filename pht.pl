@@ -202,7 +202,7 @@ while (<PRIMERS>){
   my $line = $_;
   chomp $line;
   
-  my @fields = split (/\s/, $line);
+  my @fields = split (',', $line);
   if ($fields[0] eq "R"){
     $fields[1] = reverse scalar $fields[1];
   }
