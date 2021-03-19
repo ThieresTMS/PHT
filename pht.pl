@@ -57,18 +57,22 @@ my $blast_formatter = "$covid_path/dependencias/ncbi-blast-2.11.0+/bin/blast_for
 
 my $pm = Parallel::ForkManager->new($max_cpu);
 my $date = strftime "%Y%m%d%H%M", localtime;
-my $result_path = "$covid_path/results/$date";
+my $result_path = "$covid_path/resultados/$date";
 mkdir "$result_path";
 mkdir "$result_path/final_resuts";
 
 my @names;
 my %file_name;
 my $run_mode = "single";
+my $flag = 0;
 opendir (DIR,$fastq_inputs);
 my @files = readdir (DIR);
 foreach my $file(@files){
   if ($file =~ m/_r2/i){
   $run_mode = "paired";
+  }
+  if ($file !~ m/_r\d/){
+    $flag = 1;
   } 
 }
 foreach  my $file(@files){
@@ -78,32 +82,43 @@ foreach  my $file(@files){
   if ($file !~ /.fastq.gz$/){
     next;
   }
-  if ($run_mode eq "paired"){
-    my @splitname = split (/_/, $file);
-    #print Dumper(@splitname);
-    my $i=0;
-    my $r;
-    foreach my $split(@splitname){
-      if ($split =~ /r\d/i){
-        $r = $i;
+  if ($flag == 0){
+    if ($run_mode eq "paired"){
+      my @splitname = split (/_/, $file);
+      #print Dumper(@splitname);
+      my $i=0;
+      my $r;
+      foreach my $split(@splitname){
+        if ($split =~ /r\d/i){
+          $r = $i;
+        }
+        $i++;
       }
-      $i++;
-    }
-    my @tempslipt = split (/_R/, $file);
-    my $temp_name = $tempslipt[0];
-    push (@names, $temp_name);
-    mkdir "$result_path/$temp_name";
-    $file_name{$file} = $temp_name;
-    print "Extraindo arquivo $file\n";
-    system "gunzip -c $fastq_inputs$file > $result_path/$temp_name/$temp_name\_$splitname[$r].fastq";
+      my @tempslipt = split (/_R/, $file);
+      my $temp_name = $tempslipt[0];
+      push (@names, $temp_name);
+      mkdir "$result_path/$temp_name";
+      $file_name{$file} = $temp_name;
+      print "Extraindo arquivo $file\n";
+      system "gunzip -c $fastq_inputs$file > $result_path/$temp_name/$temp_name\_$splitname[$r].fastq";
 
+    }
+    else{
+      my $temp_name = $file;
+      $temp_name =~ s/\_R1.*\.fastq\.gz//i;
+      $file_name{$file} = $temp_name;
+      push (@names, $temp_name);
+      mkdir "$result_path/$temp_name";
+      print "Extraindo arquivo $file\n";
+      system "gunzip -c $fastq_inputs$file > $result_path/$temp_name/$temp_name.fastq";
+    }
   }
-  else{
+  if ($flag == 1){
     my $temp_name = $file;
-    $temp_name =~ s/\_R1.*\.fastq\.gz//i;
+    $temp_name =~ s/\.fastq\.gz//;
     $file_name{$file} = $temp_name;
     push (@names, $temp_name);
-    mkdir "$result_path/$temp_name";
+    mkdir "$result_path\/$temp_name";
     print "Extraindo arquivo $file\n";
     system "gunzip -c $fastq_inputs$file > $result_path/$temp_name/$temp_name.fastq";
   }
@@ -344,20 +359,28 @@ foreach my $name(@filter_names){
 $pm-> wait_all_children;
 
 my @ids_ref;
+my %querys;
+my $q = "Query_";
+my $count_query = 1;
 my $in = Bio::SeqIO->new (-file =>"$ref_seqs", -format => "Fasta");
 while (my $seq_ref = $in->next_seq() ){
   my $id = $seq_ref->id();
   push (@ids_ref, $id);
 }
+foreach my$ref(@ids_ref){
+  $querys{"$q$count_query"} = $ref;
+  $count_query++;
+}
 my $header = "Indivíduo";
 foreach my $id_ref(@ids_ref){
   $header = "$header,\"$id_ref\nResultado/Identidade/Cobertura/Peso/SeqID\"";
 }
+system ("dos2unix $depara > /dev/null");
 open (DEPARA, $depara) or die;
 my %realnames;
 while (<DEPARA>){
   chomp $_;
-  my @fields = split (/,/, $_);
+  my @fields = split (',', $_);
   $realnames{$fields[0]} = $fields[1];
 }
 close (DEPARA);
@@ -438,7 +461,7 @@ foreach my $name(@filter_names){
     next;
   }
   open (IN, $blast_alg) or die("Não consegui abrir o arquivo $blast_alg\n");
-  open (OUT, ">>$result_path/final_resuts/$name.tsv");
+  open (OUT, ">>$result_path/final_resuts/$name.txt");
   print OUT "Inicio\tSequência\tFim\tID\n";
   my $i =0;
   while (<IN>){
@@ -447,40 +470,66 @@ foreach my $name(@filter_names){
       if ($i>0){
         print OUT "\n";
       }
-      $_ =~ s/Query/ref/;
       my @fields = split (/\s/,$_);
-      my $info = shift @fields;
-      push (@fields, $info);
-      my $ref;
-      foreach my $field(@fields){
-        if ($field){
-          $ref.="$field ";
-        }
-      }
-      $ref =~ s/\s/\t/g;
+      my $id = shift @fields;
+      my $id_convert = %querys{$id};
+      push (@fields, $id_convert);
+      my $ref = join (' ', @fields);
+      $ref =~ s/^\s*//;
       print OUT "$ref\n";
       $i++;
     }
-    if ($_ =~ /^\d/){
-      my @fields = split (/\s/, $_);
-      #print Dumper (\@fields);
+    if ($_ =~ /^\d/ ){
+      my @fields = split (/\s/,$_);
       my $id = $sequencescout{$name}{$fields[0]};
       chomp $id;
       $id =~ s/^>//;
       $id =~ s/\t\d*$//;
-      $fields[0] = $id;
-      my $info = shift @fields;
-      push (@fields, $info);
-     # print Dumper (\@fields);
-      my $seq;
-      foreach my $field(@fields){
-        if ($field){
-          $seq.="$field ";
-        }
-      }
-      $seq =~ s/\s/\t/g;
+      shift @fields;
+      push (@fields, $id);
+      my $seq = join (' ', @fields);
+      $seq =~ s/^\s*//;
       print OUT "$seq\n";
-    } 
+    }
+
+    #if ($_ =~ /^Query\_/ ){
+     # if ($i>0){
+     #   print OUT "\n";
+     # }
+     # $_ =~ s/Query/ref/;
+     # my @fields = split (/\s/,$_);
+     # my $info = shift @fields;
+     # push (@fields, $info);
+     # my $ref;
+     # foreach my $field(@fields){
+     #   if ($field){
+     #     $ref.="$field ";
+     #   }
+     # }
+     # $ref =~ s/\s/\t/g;
+     # print OUT "$ref\n";
+     # $i++;
+    #}
+    #if ($_ =~ /^\d/){
+    #  my @fields = split (/\s/, $_);
+    #  #print Dumper (\@fields);
+    #  my $id = $sequencescout{$name}{$fields[0]};
+    #  chomp $id;
+    #  $id =~ s/^>//;
+    #  $id =~ s/\t\d*$//;
+    #  $fields[0] = $id;
+    #  my $info = shift @fields;
+    #  push (@fields, $info);
+    # # print Dumper (\@fields);
+    #  my $seq;
+    #  foreach my $field(@fields){
+    #    if ($field){
+    #      $seq.="$field ";
+    #    }
+    #  }
+    #  $seq =~ s/\s/\t/g;
+    #  print OUT "$seq\n";
+    #} 
   }
   $pm->finish;
 }
