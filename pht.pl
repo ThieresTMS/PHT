@@ -60,7 +60,7 @@ my $date = strftime "%Y%m%d%H%M", localtime;
 my $result_path = "$covid_path/resultados/$date";
 mkdir "$result_path";
 
-mkdir "$result_path/final_results";
+mkdir "$result_path/resultados_finais";
 
 
 my @names;
