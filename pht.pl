@@ -26,8 +26,8 @@ my $weigth_cutoff; #min number of identical sequence to be analysed
 my $max_cpu; #numer of cpus to be used
 my $percent_quality_cutoff; # percentage of bases with value above the quality cutoff
 my $depara; #Illumina Id name to real name;
-my $ident_cutoff;
-my $cov;
+my $ident_cutoff; # alignment identity percentage;
+my $cov; # alignment coverage percentage;
 GetOptions (
   "in=s" => \$fastq_inputs, 
   "primers=s" => \$primer_input,
@@ -59,7 +59,9 @@ my $pm = Parallel::ForkManager->new($max_cpu);
 my $date = strftime "%Y%m%d%H%M", localtime;
 my $result_path = "$covid_path/resultados/$date";
 mkdir "$result_path";
+
 mkdir "$result_path/final_results";
+
 
 my @names;
 my %file_name;
@@ -384,7 +386,7 @@ while (<DEPARA>){
   $realnames{$fields[0]} = $fields[1];
 }
 close (DEPARA);
-open (OUTCSV, ">>$result_path/final_resuts/resultado_final.csv") or die ("Não consegui crar  o arquivo resultado_final.csv\n");
+open (OUTCSV, ">>$result_path/resultados_finais/resultado_final.csv") or die ("Não consegui crar  o arquivo resultado_final.csv\n");
 print OUTCSV "$header\n";
 my %results_ref;
 my %status;
@@ -461,7 +463,7 @@ foreach my $name(@filter_names){
     next;
   }
   open (IN, $blast_alg) or die("Não consegui abrir o arquivo $blast_alg\n");
-  open (OUT, ">>$result_path/final_resuts/$name.txt");
+  open (OUT, ">>$result_path/resultados_finais/$name.txt");
   print OUT "Inicio\tSequência\tFim\tID\n";
   my $i =0;
   while (<IN>){
