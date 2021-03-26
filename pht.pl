@@ -59,7 +59,9 @@ my $pm = Parallel::ForkManager->new($max_cpu);
 my $date = strftime "%Y%m%d%H%M", localtime;
 my $result_path = "$covid_path/resultados/$date";
 mkdir "$result_path";
-mkdir "$result_path/resultados_finais";
+
+mkdir "$result_path/final_results";
+
 
 my @names;
 my %file_name;
