@@ -126,6 +126,7 @@ foreach  my $file(@files){
   }
 }
 $pm -> wait_all_children;
+close (DIR);
 
 sub uniq {
     my %seen;
@@ -214,19 +215,30 @@ $pm -> wait_all_children;
 my %sequencew;
 my %primerfr;
 my @primers;
-open (PRIMERS, "$primer_input") or die ("Não consegui abrir o arquivo de primer $primer_input\n");
-while (<PRIMERS>){
-  my $line = $_;
-  chomp $line;
-  
-  my @fields = split (',', $line);
-  if ($fields[0] eq "R"){
-    $fields[1] = reverse scalar $fields[1];
+opendir (PRIMERS_DIR, "$primer_input") or die ("Não consegui abrir o arquivo de primer $primer_input\n");
+my @primers_files = readdir(PRIMERS_DIR);
+foreach  my $p_file(@primers_files){
+  #print "$p_file\n";
+  if (($p_file eq ".") || ($p_file eq "..")){
+    next;
   }
-  push (@primers, $fields[1]);
-  $primerfr{$fields[1]} = $fields[0];
+  if ($p_file =~ /.csv/){
+    open (PRIMERS, "$primer_input/$p_file") or die ("Não cnosegui abir o arquivo de primer $primer_input/$p_file\n");
+    while (<PRIMERS>){
+      my $line = $_;
+      chomp $line;
+  
+      my @fields = split (',', $line);
+      if ($fields[0] eq "R"){
+        $fields[1] = reverse scalar $fields[1];
+      }
+      push (@primers, $fields[1]);
+      $primerfr{$fields[1]} = $fields[0];
+    }
+  }
+  close (PRIMERS);
 }
-close (PRIMERS);
+close (PRIMERS_DIR);
 $/=">";
 
 LENGTH:
@@ -341,6 +353,21 @@ foreach my $name(@filter_names){
 }
 $pm-> wait_all_children;
 $/="\n";
+
+#get fasta references file 
+my $ref_path;
+opendir (REFS, $ref_seqs) or die; 
+my @ref_files = readdir (REFS);
+foreach my $ref_file(@ref_files){
+  if (($ref_file eq ".") || ($ref_file eq "..")){
+    next;
+  }
+  if (($ref_file =~ /.fasta/) || ($ref_file =~ /.fa/)){
+  $ref_path = "$ref_seqs/$ref_file";
+  }
+}
+
+
 BLAST:
 foreach my $name(@filter_names){
   my $pid = $pm -> start and next BLAST;
@@ -350,9 +377,9 @@ foreach my $name(@filter_names){
     $pm->finish;
     next;
   }
-  print "Rodando blast pro arquivo $name\n";
+  print "Executando blast em $name\n";
   system "$blast_makedb_path -in $fasta -dbtype nucl -title $name.db -out $database > /dev/null";
-  system "$blastn_path -task blastn -query $ref_seqs -evalue 1 -db $database -outfmt 11 -out $result_path/$name/$name\_blast_out";
+  system "$blastn_path -task blastn -query $ref_path -evalue 1 -db $database -outfmt 11 -out $result_path/$name/$name\_blast_out";
   system "$blast_formatter -archive $result_path/$name/$name\_blast_out -outfmt \"6 qseqid sseqid pident qcovs evalue\" -out $result_path/$name/$name\_blast.tsv";
   system "$blast_formatter -archive $result_path/$name/$name\_blast_out -outfmt 2 -out $result_path/$name/$name\_blast_alg";
 
@@ -364,7 +391,7 @@ my @ids_ref;
 my %querys;
 my $q = "Query_";
 my $count_query = 1;
-my $in = Bio::SeqIO->new (-file =>"$ref_seqs", -format => "Fasta");
+my $in = Bio::SeqIO->new (-file =>"$ref_path", -format => "Fasta");
 while (my $seq_ref = $in->next_seq() ){
   my $id = $seq_ref->id();
   push (@ids_ref, $id);
@@ -377,15 +404,29 @@ my $header = "Indivíduo";
 foreach my $id_ref(@ids_ref){
   $header = "$header,\"$id_ref\nResultado/Identidade/Cobertura/Peso/SeqID\"";
 }
-system ("dos2unix $depara > /dev/null");
-open (DEPARA, $depara) or die;
+
+opendir (DEPARA_DIR, $depara) or die;
+
 my %realnames;
-while (<DEPARA>){
-  chomp $_;
-  my @fields = split (',', $_);
-  $realnames{$fields[0]} = $fields[1];
+my @d_files = readdir(DEPARA_DIR);
+foreach my $d_file(@d_files){
+  if (($d_file eq ".") || ($d_file eq "..")){
+    next;
+  }
+  if ($d_file =~ /.csv/){
+    system ("dos2unix -q $depara$d_file");
+    open (DEPARA, "$depara/$d_file") or die ("Não cnosegui abir o arquivo de primer $depara/$d_file\n");
+  }
+
+  while (<DEPARA>){
+    chomp $_;
+    my @fields = split (',', $_);
+    $realnames{$fields[0]} = $fields[1];
+  }
+  
 }
 close (DEPARA);
+close (DEPARA_DIR);
 open (OUTCSV, ">>$result_path/resultados_finais/resultado_final.csv") or die ("Não consegui crar  o arquivo resultado_final.csv\n");
 print OUTCSV "$header\n";
 my %results_ref;
@@ -402,7 +443,7 @@ foreach my $name(@filter_names){
       foreach my $line(<BLASTTSV>){
         if ($line =~ /^$id/){
           my @fields = split (/\t/, $line);
-          if (($fields[2] > $ident_cutoff)&&($fields[3] > $cov)){
+          if (($fields[2] >= $ident_cutoff)&&($fields[3] >= $cov)){
             $status{$name}{$id} = 1; #1 = positivo;
             if ($idcount<1){
               $idvalue .= "+ / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
@@ -412,12 +453,22 @@ foreach my $name(@filter_names){
               $idvalue.= "\n+ / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
             }
           }
-        }else{next}
-      
+        
+          if (($fields[2] < $ident_cutoff)||($fields[3] < $cov)){
+            if ($idcount<1){
+              $idvalue .= "- / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
+              $idcount++;
+            }
+            else{
+              #print "Estou aqui\n";
+              $idvalue.= "\n- / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
+            }
+          }
+        }
       }
-      if ($status{$name}{$id} == 0){
-        $idvalue = "-";
-      }
+      #if ($status{$name}{$id} == 0){
+      #  $idvalue = "-";
+      #}
       if ($idvalue){
           $line2print.= ",\"$idvalue\"";
         }
