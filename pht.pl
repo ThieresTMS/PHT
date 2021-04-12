@@ -447,22 +447,22 @@ foreach my $name(@filter_names){
           if (($fields[2] >= $ident_cutoff)&&($fields[3] >= $cov)){
             $status{$name}{$id} = 1; #1 = positivo;
             if ($idcount<1){
-              $idvalue .= "+ / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
+              $idvalue .= "P / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
               $idcount++;
             }
             else{
-              $idvalue.= "\n+ / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
+              $idvalue.= "\nP / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
             }
           }
         
           if (($fields[2] < $ident_cutoff)||($fields[3] < $cov)){
             if ($idcount<1){
-              $idvalue .= "- / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
+              $idvalue .= "N / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
               $idcount++;
             }
             else{
               #print "Estou aqui\n";
-              $idvalue.= "\n- / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
+              $idvalue.= "\nN / $fields[2]\% / $fields[3]\% / $sequencew{$name}{$fields[1]} / $fields[1]";
             }
           }
         }
