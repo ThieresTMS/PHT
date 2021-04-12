@@ -486,6 +486,8 @@ foreach my $name(@filter_names){
 
 close (OUTCSV);
 
+system "unix2dos $result_path/resultados_finais/resultado_final.csv";
+
 my %sequencescout;
 foreach my $name(@filter_names){
   if (!-s "$result_path/$name/$name.qfilter.pfilter.unique.final.fasta"){
