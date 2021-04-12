@@ -57,6 +57,7 @@ my $blast_formatter = "$covid_path/dependencias/ncbi-blast-2.11.0+/bin/blast_for
 
 my $pm = Parallel::ForkManager->new($max_cpu);
 my $date = strftime "%Y%m%d%H%M", localtime;
+print "O id da execução é $date\n";
 my $result_path = "$covid_path/resultados/$date";
 mkdir "$result_path";
 
