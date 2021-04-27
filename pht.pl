@@ -230,7 +230,7 @@ foreach  my $p_file(@primers_files){
       my $line = $_;
       chomp $line;
   
-      my @fields = split (',', $line);
+      my @fields = split (';', $line);
       if ($fields[0] eq "R"){
         $fields[1] = reverse scalar $fields[1];
       }
@@ -423,7 +423,7 @@ foreach my $d_file(@d_files){
 
   while (<DEPARA>){
     chomp $_;
-    my @fields = split (',', $_);
+    my @fields = split (';', $_);
     $realnames{$fields[0]} = $fields[1];
   }
   
