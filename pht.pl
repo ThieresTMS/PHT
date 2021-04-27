@@ -224,7 +224,7 @@ foreach  my $p_file(@primers_files){
     next;
   }
   if ($p_file =~ /.csv/){
-    system "dos2unix -q $primer_input/$p_file";
+    system "dos2unix $primer_input/$p_file";
     open (PRIMERS, "$primer_input/$p_file") or die ("Não cnosegui abir o arquivo de primer $primer_input/$p_file\n");
     while (<PRIMERS>){
       my $line = $_;
