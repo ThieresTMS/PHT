@@ -224,7 +224,7 @@ foreach  my $p_file(@primers_files){
     next;
   }
   if ($p_file =~ /.csv/){
-    system "dos2unix $primer_input/$pfile";
+    system "dos2unix -q $primer_input/$pfile";
     open (PRIMERS, "$primer_input/$p_file") or die ("Não cnosegui abir o arquivo de primer $primer_input/$p_file\n");
     while (<PRIMERS>){
       my $line = $_;
@@ -366,7 +366,7 @@ foreach my $ref_file(@ref_files){
   }
   if (($ref_file =~ /.fasta/) || ($ref_file =~ /.fa/)){
   $ref_path = "$ref_seqs/$ref_file";
-  system "dos2unix $ref_path";
+  system "dos2unix -q $ref_path";
   }
 }
 
