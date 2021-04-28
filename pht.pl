@@ -67,16 +67,12 @@ mkdir "$result_path/resultados_finais";
 my @names;
 my %file_name;
 my $run_mode = "single";
-my $flag = 0;
 opendir (DIR,$fastq_inputs);
 my @files = readdir (DIR);
 foreach my $file(@files){
   if ($file =~ m/_r2/i){
   $run_mode = "paired";
   }
-  if ($file !~ m/_r\d/){
-    $flag = 1;
-  } 
 }
 foreach  my $file(@files){
   if (($file eq ".") || ($file eq "..")){
@@ -85,39 +81,29 @@ foreach  my $file(@files){
   if ($file !~ /.fastq.gz$/){
     next;
   }
-  if ($flag == 0){
-    if ($run_mode eq "paired"){
-      my @splitname = split (/_/, $file);
-      #print Dumper(@splitname);
-      my $i=0;
-      my $r;
-      foreach my $split(@splitname){
-        if ($split =~ /r\d/i){
-          $r = $i;
-        }
-        $i++;
+  if ($run_mode eq "paired"){
+    my @splitname = split (/_/, $file);
+    #print Dumper(@splitname);
+    my $i=0;
+    my $r;
+    foreach my $split(@splitname){
+      if ($split =~ /r\d/i){
+        $r = $i;
       }
-      my @tempslipt = split (/_R/, $file);
-      my $temp_name = $tempslipt[0];
-      push (@names, $temp_name);
-      mkdir "$result_path/$temp_name";
-      $file_name{$file} = $temp_name;
-      print "Extraindo arquivo $file\n";
-      system "gunzip -c $fastq_inputs$file > $result_path/$temp_name/$temp_name\_$splitname[$r].fastq";
+      $i++;
+    }
+    my @tempslipt = split (/_R/, $file);
+    my $temp_name = $tempslipt[0];
+    push (@names, $temp_name);
+    mkdir "$result_path/$temp_name";
+    $file_name{$file} = $temp_name;
+    print "Extraindo arquivo $file\n";
+    system "gunzip -c $fastq_inputs$file > $result_path/$temp_name/$temp_name\_$splitname[$r].fastq";
 
-    }
-    else{
-      my $temp_name = $file;
-      $temp_name =~ s/\_R1.*\.fastq\.gz//i;
-      $file_name{$file} = $temp_name;
-      push (@names, $temp_name);
-      mkdir "$result_path/$temp_name";
-      print "Extraindo arquivo $file\n";
-      system "gunzip -c $fastq_inputs$file > $result_path/$temp_name/$temp_name.fastq";
-    }
   }
-  if ($flag == 1){
+  else{
     my $temp_name = $file;
+    #print "Estou fora\n";
     $temp_name =~ s/\.fastq\.gz//;
     $file_name{$file} = $temp_name;
     push (@names, $temp_name);
@@ -229,9 +215,14 @@ foreach  my $p_file(@primers_files){
     while (<PRIMERS>){
       my $line = $_;
       chomp $line;
-  
-      my @fields = split (';', $line);
-      if ($fields[0] eq "R"){
+      my @fields;
+      if ($line =~ m/,/){
+        @fields = split (',', $line);
+      }
+      if ($line =~ m/;/){
+        @fields = split (';', $line);
+      }
+      if (($fields[0] eq "R") or ($fields[0] eq "r")){
         $fields[1] = reverse scalar $fields[1];
       }
       push (@primers, $fields[1]);
@@ -358,7 +349,7 @@ $/="\n";
 
 #get fasta references file 
 my $ref_path;
-opendir (REFS, $ref_seqs) or die; 
+opendir (REFS, $ref_seqs) or die("Não consegui abri o diretório de referências"); 
 my @ref_files = readdir (REFS);
 foreach my $ref_file(@ref_files){
   if (($ref_file eq ".") || ($ref_file eq "..")){
@@ -418,15 +409,23 @@ foreach my $d_file(@d_files){
   }
   if ($d_file =~ /.csv/){
     system ("dos2unix -q $depara$d_file");
-    open (DEPARA, "$depara/$d_file") or die ("Não cnosegui abir o arquivo de primer $depara/$d_file\n");
+    open (DEPARA, "$depara/$d_file") or die ("Não consegui abir o arquivo de primer $depara/$d_file\n");
   }
 
   while (<DEPARA>){
-    chomp $_;
-    my @fields = split (';', $_);
+    my $line = $_;
+    chomp $line;
+    my @fields;
+    if ($line =~ m/,/){
+        @fields = split (',', $line);
+      }
+      if ($line =~ m/;/){
+        @fields = split (';', $line);
+      }
+    #print "O arquivo é $fields[0], e o nome é $fields[1]\n";
     $realnames{$fields[0]} = $fields[1];
   }
-  
+#  print Dumper(%realnames);
 }
 close (DEPARA);
 close (DEPARA_DIR);
@@ -435,6 +434,7 @@ print OUTCSV "$header\n";
 my %results_ref;
 my %status;
 foreach my $name(@filter_names){
+  #print "o nome é $name\n";
   print OUTCSV "$realnames{$name}";
   my $idvalue;
   my $idcount =0;
@@ -530,7 +530,7 @@ foreach my $name(@filter_names){
       }
       my @fields = split (/\s/,$_);
       my $id = shift @fields;
-      my $id_convert = %querys{$id};
+      my $id_convert = $querys{$id};
       push (@fields, $id_convert);
       my $ref = join (' ', @fields);
       $ref =~ s/^\s*//;
