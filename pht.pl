@@ -409,7 +409,7 @@ foreach my $d_file(@d_files){
   }
   if ($d_file =~ /.csv/){
     system ("dos2unix -q $depara$d_file");
-    open (DEPARA, "$depara/$d_file") or die ("Não consegui abir o arquivo de primer $depara/$d_file\n");
+    open (DEPARA, "$depara/$d_file") or die ("Não consegui abir o arquivo de indivíduos $depara/$d_file\n");
   }
 
   while (<DEPARA>){
@@ -475,6 +475,9 @@ foreach my $name(@filter_names){
       if ($idvalue){
           $line2print.= ",\"$idvalue\"";
         }
+      else{
+        $line2print .= ", \"Nenhum match válido\"";
+      }
       $idcount=0;
       $idvalue="";
       close(BLASTTSV);
