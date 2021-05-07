@@ -435,7 +435,12 @@ my %results_ref;
 my %status;
 foreach my $name(@filter_names){
   #print "o nome é $name\n";
-  print OUTCSV "$realnames{$name}";
+  if ($realnames{$name}){
+    print OUTCSV "$realnames{$name}";
+  } 
+  else {
+    print OUTCSV "$name";
+  }
   my $idvalue;
   my $idcount =0;
   my $line2print;
@@ -476,7 +481,7 @@ foreach my $name(@filter_names){
           $line2print.= ",\"$idvalue\"";
         }
       else{
-        $line2print .= ", \"Nenhum match válido\"";
+        $line2print .= ",\"Nenhum match válido\"";
       }
       $idcount=0;
       $idvalue="";
